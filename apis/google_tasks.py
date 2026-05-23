@@ -104,7 +104,15 @@ def get_task_lists():
     # [{"id": ..., "title": ...}, ...]
     service = build("tasks", "v1", credentials=_login())
     result = service.tasklists().list().execute()
-    return [{"id": item["id"], "title": item["title"]} for item in result.get("items", [])]
+    
+    items = result.get("items", [])
+    result_list = []
+    for item in items:
+        result_list.append({
+            "id": item["id"],
+            "title": item["title"]
+        })
+    return result_list
 
 
 def get_all_task_titles():
@@ -133,7 +141,15 @@ def get_all_task_titles():
 def get_tasks_in_list(list_id):
     service = build("tasks", "v1", credentials=_login())
     tasks_result = service.tasks().list(tasklist=list_id, showCompleted=False).execute()
-    return [{"id": item["id"], "title": item["title"]} for item in tasks_result.get("items", [])]
+    
+    items = tasks_result.get("items", [])
+    result_list = []
+    for item in items:
+        result_list.append({
+            "id": item["id"],
+            "title": item["title"]
+        })
+    return result_list
 # ==============
 
 

@@ -17,7 +17,17 @@ load_dotenv("auth/.env", override=True)
 def get_cognitive_timeline():
     try:
         from apis.activitywatch import get_recent_apps
-        return [{"time": f"{i['minutes']}분 사용", "app": i["app"], "title": i["title"]} for i in get_recent_apps(30)[:10]]
+        apps = get_recent_apps(30)
+        
+        result_list = []
+        for item in apps[:10]:
+            temp_dict = {
+                "time": f"{item['minutes']}분 사용",
+                "app": item["app"],
+                "title": item["title"]
+            }
+            result_list.append(temp_dict)
+        return result_list
     except:
         return [
             {"time": "10분 전", "app": "VS Code", "title": "daily_report.py - 코딩 작업 중"},

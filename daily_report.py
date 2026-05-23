@@ -45,9 +45,16 @@ if __name__ == "__main__":
     # 로그 텍스트 파싱
     if logs:
         total = len(logs)
-        distracted = sum(
-            1 for l in logs if l.get("distracted"))  # key = distracted에서 방해를 받았지는 안 받았는지 True/False로 넣음
-        avg_score = sum(l.get("score", 0) for l in logs) // total  # 평균적인 점수를 냄 -> 다 합해서 평균
+        distracted = 0
+        for l in logs:
+            if l.get("distracted"):  # key = distracted에서 방해를 받았지는 안 받았는지 True/False로 넣음
+                distracted += 1
+        
+        score_sum = 0
+        for l in logs:
+            score_sum += l.get("score", 0)
+        avg_score = score_sum // total  # 평균적인 점수를 냄 -> 다 합해서 평균
+        
         log_text = f"총 {total}회 측정됨 | 딴짓 {distracted}회 | 평균 집중점수 {avg_score}점\n\n"
         for l in logs:
             flag = " 딴짓" if l.get("distracted") else "집중"
@@ -66,14 +73,25 @@ if __name__ == "__main__":
     """
     print("ActivityWatch 데이터 수집 중...")
     apps = get_today_apps()  # 함수 불러오기
-    apps = [a for a in apps if a["minutes"] >= 1.0]  # 1분 미만은 제거
+    
+    # 1분 미만은 제거
     # 계속해서 앱이 바뀌는 순간까지 포착을 하기 때문에 많은 로그들이 나옴 -> 1분 미만은 제거함
+    filtered_apps = []
+    for a in apps:
+        if a["minutes"] >= 1.0:
+            filtered_apps.append(a)
+    apps = filtered_apps
 
     if apps:
         aw_text = ""
-        web_items = [a for a in apps if a["source"] == "web"]  # web 데이터
-        app_items = [a for a in apps if a["source"] != "web"]  # app데이터(로컬앱들 - pycharm, samsung notes, obsidian) 등
+        web_items = []
+        app_items = []
         # 둘의 데이터가 겹치지 않는 부분이 있어서 나눔
+        for a in apps:
+            if a["source"] == "web":
+                web_items.append(a)
+            else:
+                app_items.append(a)
 
         if app_items:
             aw_text += "====== 로컬 앱 =========="
