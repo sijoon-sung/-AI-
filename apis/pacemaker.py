@@ -10,8 +10,11 @@ load_dotenv("auth/.env", override=True)
 def trigger_intervention(goal, reason):
     # 1. 타임라인 데이터 가져오기
     from apis.activitywatch import get_recent_apps
-    timeline = [{"time": f"{i['minutes']}분 사용", "app": i["app"], "title": i["title"]} for i in get_recent_apps(20)[:10]]
-    timeline_text = "\n".join([f"- {item['time']} | {item['app']} | {item['title'][:50]}" for item in timeline])
+    apps = get_recent_apps(20)
+    timeline_lines = []
+    for i in apps[:10]:
+        timeline_lines.append(f"- {i['minutes']}분 사용 | {i['app']} | {i['title'][:50]}")
+    timeline_text = "\n".join(timeline_lines)
 
     # 2. Gemini에 이탈 심리 분석 요청
     prompt = f"""너는 인지심리학 전문 코치야. 정보를 바탕으로 학생이 집중을 잃은 '트리거' / '경로'를 객관적인 어조로 분석해줘. 4줄 내외로 간결하게 작성해줘. md가 아닌 일반텍스트 형식으로 작성해줘.

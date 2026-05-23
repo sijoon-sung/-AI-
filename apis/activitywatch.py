@@ -80,8 +80,8 @@ def get_current_app():
             with urllib.request.urlopen(AW_URL + f"/buckets/{window_id}/events?limit=1", timeout=3) as r:
                 events = json.loads(r.read())
             if events:
-                app = events[0]["data"].get("app", "알 수 없음")
-                title = events[0]["data"].get("title", "알 수 없음")
+                app = events[0]["data"]["app"]
+                title = events[0]["data"]["title"]
                 source = "window"
         except:
             pass
@@ -92,8 +92,8 @@ def get_current_app():
             with urllib.request.urlopen(AW_URL + f"/buckets/{web_id}/events?limit=1", timeout=3) as r:
                 events = json.loads(r.read())
             if events:
-                title = events[0]["data"].get("title", title)
-                url = events[0]["data"].get("url", "")
+                title = events[0]["data"]["title"]
+                url = events[0]["data"]["url"]
                 source = "web"
         except:
             pass
@@ -151,9 +151,9 @@ def get_recent_apps(minutes=10):
                 events = data[0] if data else []
 
                 for event in events:
-                    app = event["data"].get("app", "알 수 없음")
-                    title = event["data"].get("title", "알 수 없음")
-                    secs = float(event.get("duration", event.get("data", {}).get("duration", 0)))
+                    app = event["data"]["app"]
+                    title = event["data"]["title"]
+                    secs = float(event["duration"])
                     if app.lower() in BROWSERS and web_id:  # 브라우저는 좀 더 상세하게 정리 가능한 WEB 버킷 사용
                         continue
                     key = (app, title)
@@ -188,9 +188,9 @@ def get_recent_apps(minutes=10):
                 data = json.loads(r.read())
                 events = data[0] if data else []
                 for ev in events:
-                    title = ev["data"].get("title", "알 수 없음")
-                    url = ev["data"].get("url", "")
-                    secs = float(ev.get("duration", ev.get("data", {}).get("duration", 0)))
+                    title = ev["data"]["title"]
+                    url = ev["data"]["url"]
+                    secs = float(ev["duration"])
                     if not url or len(url) < 8:
                         continue
                     key = ("브라우저", title)
@@ -237,7 +237,6 @@ if __name__ == "__main__":
     print("\n=== 오늘 하루 전체 사용 내역 (상위 20개) ===")
     today_apps = get_today_apps()
 
-    # 데이터가 20개보다 적을 수 있으므로 안전하게 슬라이싱 처리
     top_20_apps = today_apps[:20]
 
     if not top_20_apps:

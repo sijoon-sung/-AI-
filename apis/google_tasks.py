@@ -35,7 +35,6 @@ CHP 7 memory management 복습,
 
 import os
 import json
-import logging
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -46,7 +45,6 @@ from googleapiclient.discovery import build
 
 load_dotenv("../auth/.env", override=True)
 
-logger = logging.getLogger(__name__)
 SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/auth/gmail.send"]
 
 
@@ -60,25 +58,19 @@ def _login():
 
     # 2. 루트 폴더 아래의 auth 폴더 및 파일 경로 설정
     auth_dir = os.path.join(project_root, "auth")
-    os.makedirs(auth_dir, exist_ok=True)  # 폴더가 없으면 자동 생성
+
 
     token_path = os.path.join(auth_dir, "token.json")
     secret_path = os.path.join(auth_dir, "client_secret.json")
 
 
     if os.path.exists(token_path):
-        try:
-            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
-        except:
-            pass
+        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
 
     # 4. 토큰이 없거나 만료된 경우 처리
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-            except:
-                creds = None
+            creds.refresh(Request())
 
         if not creds:
             # client_secret.json 파일이 지정한 위치에 있는지 확인
@@ -130,14 +122,14 @@ def get_all_task_titles():
                 # title 만 가져옴
                 titles.append(task["title"])
         except Exception as e:
-            logger.error(f"목록 {lst['title']} 로딩 중 에러: {e}")
+            print(f"목록 {lst['title']} 로딩 중 에러: {e}")
             continue
 
     return ",".join(titles) if titles else "할일 없음"
 
 
 #===============
-# error: get_tasks_in_list 함수 누락 오류 해결
+# error: get_tasks_in_list 함수를 따로 만듬 -> list로 쓸 떄
 def get_tasks_in_list(list_id):
     service = build("tasks", "v1", credentials=_login())
     tasks_result = service.tasks().list(tasklist=list_id, showCompleted=False).execute()
@@ -155,17 +147,13 @@ def get_tasks_in_list(list_id):
 
 def save_log(task_name, focus_score, is_distracted):
     # 집중도 측정 결과 => data/log_YYYY-MM-DD.json 에 저장
-    os.makedirs("data", exist_ok=True)
     today = datetime.now().strftime("%Y-%m-%d")
     log_path = f"data/log_{today}.json"  # 날마다 다른 파일
     logs = []
 
     if os.path.exists(log_path):
-        try:
-            with open(log_path, "r", encoding="utf-8") as f:
-                logs = json.load(f)
-        except:
-            logs = []
+        with open(log_path, "r", encoding="utf-8") as f:
+            logs = json.load(f)
 
     logs.append({
         "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

@@ -11,10 +11,8 @@ import threading
 # 계속 해서 한글이 깨지는 문제 발생 -> 인코딩에 문제가 되는 듯
 
 # Windows cp949 인코딩 에러 방지용 -------UTF-8 설정
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 
 # error: get_tasks_in_list import 누락 해결
@@ -36,20 +34,17 @@ last_check_time = time.time()
 
 # 목표 저장 하고 불러오기
 def save_goal(g, t):
-    os.makedirs("data", exist_ok=True)
     with open(GOAL_FILE, "w", encoding="utf-8") as f:
         json.dump({"subject": g, "todo": t}, f, ensure_ascii=False, indent=2)
+        # 저장하기 - "goal", "task" 가 키임
 
 
 def load_goal():
     if not os.path.exists(GOAL_FILE):
         return "", "" # 없으면 빈칸 리턴하기
-    try:
-        with open(GOAL_FILE, encoding="utf-8") as f:
-            d = json.load(f)
-        return d.get("subject", ""), d.get("todo", "")
-    except:
-        return "", ""
+    with open(GOAL_FILE, encoding="utf-8") as f:
+        d = json.load(f) # 로드해서 반환하기 goal/task를
+    return d["subject"], d["todo"]
 
 # Google tasks에 목표 메뉴를 고름
 def pick_goal():
@@ -62,7 +57,7 @@ def pick_goal():
 
     for i, lst in enumerate(lists):
         print(f"{i+1},{lst['title']}")
-    choice = input("번호 입력 / enter = 건너뀌기").strip()
+    choice = input("번호 입력 / enter = 건너뀌기")
     # 리스트 안에 드는 지도 확인해야 함
 
 
@@ -161,7 +156,7 @@ def main():
     saved_goal, saved_task = load_goal()
     if saved_goal:
         print(f"saved goal: [{saved_goal}] {saved_task or '(없음)'}")
-        change = input("목표를 바꿀까요? |y=예 / 엔터=유지|: ").strip()
+        change = input("목표를 바꿀까요? |y=예 / 엔터=유지|: ")
         if change == "y":
             goal, task_titles = pick_goal()
         else:
@@ -196,7 +191,7 @@ def main():
 
             print_status()
         elif cmd == "t":
-            new_interval = input(f"새 주기 입력(현재 {interval//60}분): ").strip()
+            new_interval = input(f"새 주기 입력(현재 {interval//60}분): ")
             if new_interval.isdigit() and int(new_interval) > 0:
                 interval = int(new_interval) * 60
                 print(f"측정 주기 = {new_interval}분으로 변경")

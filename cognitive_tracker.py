@@ -7,8 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 
 # 인코딩 설정 ------> 한글이 깨지는 문제
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")
 
 # 환경 변수
 load_dotenv("auth/.env", override=True)
@@ -67,8 +66,12 @@ def show_cognitive_report(goal, analysis_result):
     btn_frame = tk.Frame(root)
     btn_frame.pack(pady=10)
     
+    def on_rest():
+        messagebox.showinfo("휴식", "컴퓨터에서 떨어져 눈을 붙이세요!")
+        root.destroy()
+
     tk.Button(btn_frame, text="다시 집중하기", command=root.destroy, width=12).pack(side=tk.LEFT, padx=5)
-    tk.Button(btn_frame, text="5분 휴식하기", command=lambda: [messagebox.showinfo("휴식", "컴퓨터에서 떨어져 눈을 붙이세요!"), root.destroy()], width=12).pack(side=tk.LEFT, padx=5)
+    tk.Button(btn_frame, text="5분 휴식하기", command=on_rest, width=12).pack(side=tk.LEFT, padx=5)
 
     root.mainloop()
 

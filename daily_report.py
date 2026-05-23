@@ -97,26 +97,28 @@ if __name__ == "__main__":
             aw_text += "====== 로컬 앱 =========="
             for item in app_items[:20]:  # 일단은 다 보여주는 게 아니라 상위(정렬이 되어서 받아옴) 20개만
                 # 형식을 맞추기
-                aw_text += f"  {item['app']:20s} | {item['minutes']:5.1f}분 | {item['title'][:50]}\n"
+                aw_text += f"  {item['app']} | {int(item['minutes'])}분 | {item['title'][:50]}\n"
 
         if web_items:
             aw_text += "\n=== 브라우저 탭 ===\n"
             for item in web_items[:35]:
                 # 웹은 chrome / edge의 이름만이 나오ㅓ기 때문에 ['app']은 빼고 적음
-                aw_text += f"  {item['minutes']:5.1f}분 | {item['title'][:50]}\n"
+                aw_text += f"  {int(item['minutes'])}분 | {item['title'][:50]}\n"
 
                 if item.get("url"):  # url 주소가 있으면
                     aw_text += f"    ㄴ-----{item['url']}"
 
-        total_mins = sum(a["minutes"] for a in apps)
-        aw_text += f"\n total 컴퓨터 사용: {total_mins:.0f}분 ({total_mins / 60:.1f}시간)"  # 시간/분으로 바꾸기 --- 보기 안좋음
+        total_mins = 0
+        for a in apps:
+            total_mins += a["minutes"]
+        aw_text += f"\n total 컴퓨터 사용: {int(total_mins)}분 ({int(total_mins / 60)}시간)"  # 시간/분으로 바꾸기 --- 보기 안좋음
     else:
         aw_text = "ActivityWatch의 데이터 없음"
 
     print("======Activity Watch 데이터 로드 완료======")
 
     # Gemini로 리포트 생성
-    print("Gemini로 리포트 작성 중....")
+    print("Gemini로 리포트 작성 중")
     print("===============")
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
 
@@ -144,11 +146,8 @@ if __name__ == "__main__":
     # 아까 만들었던 log_text => 내부 JSON으로 스크린샷으로 캡처를 한 것
     # aw_text => 외부 API 로 부터 받은 상위 30개의 목록
 
-    try:
-        response = llm.invoke([system, user])
-        report = response.content
-    except Exception as e:
-        report = f"리포트 생성 실패: {e}"
+    response = llm.invoke([system, user])
+    report = response.content
 
     print(report)
 
@@ -157,39 +156,28 @@ if __name__ == "__main__":
     creds = None
     service = None
 
-    try:
-        # 기존 토큰 불러오기
-        if os.path.exists("auth/token.json"):
-            creds = Credentials.from_authorized_user_file("auth/token.json", SCOPES)
+    # 기존 토큰 불러오기
+    if os.path.exists("auth/token.json"):
+        creds = Credentials.from_authorized_user_file("auth/token.json", SCOPES)
 
-        # 토큰이 없으면 새로 로그인
-        if not creds or not creds.valid:
-            flow = InstalledAppFlow.from_client_secrets_file("auth/client_secret.json", SCOPES)
-            creds = flow.run_local_server(port=0)
-            with open("auth/token.json", "w") as f:
-                f.write(creds.to_json())
+    # 토큰이 없으면 새로 로그인
+    if not creds or not creds.valid:
+        flow = InstalledAppFlow.from_client_secrets_file("auth/client_secret.json", SCOPES)
+        creds = flow.run_local_server(port=0)
+        with open("auth/token.json", "w") as f:
+            f.write(creds.to_json())
 
-        service = build("gmail", "v1", credentials=creds)
+    service = build("gmail", "v1", credentials=creds)
 
-    except Exception as e:
-        print(f" 인증 과정에서 문제가 발생: {e}")
+    my_email = os.getenv("MY_EMAIL", "sijoon0404@gmail.com")
 
-    if service:
+    msg = EmailMessage()
+    msg["Subject"] = f"오늘의 집중도 리포트 ({datetime.now().strftime('%m월 %d일')})"
+    msg["From"] = my_email
+    msg["To"] = my_email
+    msg.set_content(report)  # 속성 대입(=)이 아닌 메서드 함수 호출로 수정
 
-        my_email = os.getenv("MY_EMAIL", "sijoon0404@gmail.com")
-
-        msg = EmailMessage()
-        msg["Subject"] = f"오늘의 집중도 리포트 ({datetime.now().strftime('%m월 %d일')})"
-        msg["From"] = my_email
-        msg["To"] = my_email
-        msg.set_content(report)  # 속성 대입(=)이 아닌 메서드 함수 호출로 수정
-
-        try:
-            encoded = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-            service.users().messages().send(userId="me", body={"raw": encoded}).execute()
-            print("이메일로 보냈습니다!")
-        except Exception as e:
-            print(f" 이메일 전송 도중 에러: {e}")
-    else:
-        print(" Gmail 서비스가 초기화되지 않음")
+    encoded = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    service.users().messages().send(userId="me", body={"raw": encoded}).execute()
+    print("이메일로 보냈습니다!")
 

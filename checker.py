@@ -53,10 +53,8 @@ from datetime import datetime
 from typing import Annotated, TypedDict
 
 #  UTF-8 설정
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 import pyautogui
 from plyer import notification
@@ -84,7 +82,6 @@ class AgentState(TypedDict):
 @tool
 def check_screen():
     """현재 모니터 화면을 캡처해서 공부중인지 딴짓하는지 분석함"""
-    os.makedirs("data", exist_ok=True)
     pyautogui.screenshot().save("data/temp.png")
 
     with open("data/temp.png", "rb") as f:
@@ -166,7 +163,7 @@ def agent_run(state):
 # 조건부 분기 (도구 실행 여부 판단)
 def check_loop(state):
     last = state["messages"][-1]
-    if getattr(last, "tool_calls", None):
+    if last.tool_calls:
         return "tools"
     return END
 
