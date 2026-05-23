@@ -20,7 +20,7 @@ if hasattr(sys.stderr, "reconfigure"):
 # error: get_tasks_in_list import 누락 해결
 from apis.google_tasks import get_task_lists, get_all_task_titles, get_tasks_in_list
 
-from checker import run_check
+from checker import check_now
 
 # 기본적인 설정 값
 GOAL_FILE = "data/goal.json"
@@ -38,8 +38,7 @@ last_check_time = time.time()
 def save_goal(g, t):
     os.makedirs("data", exist_ok=True)
     with open(GOAL_FILE, "w", encoding="utf-8") as f:
-        json.dump({"goal": g, "task": t}, f, ensure_ascii=False, indent=2)
-        # 저장하기 - "goal", "task" 가 키임
+        json.dump({"subject": g, "todo": t}, f, ensure_ascii=False, indent=2)
 
 
 def load_goal():
@@ -47,8 +46,8 @@ def load_goal():
         return "", "" # 없으면 빈칸 리턴하기
     try:
         with open(GOAL_FILE, encoding="utf-8") as f:
-            d = json.load(f) # 로드해서 반환하기 goal/task를
-        return d.get("goal", ""), d.get("task", "")
+            d = json.load(f)
+        return d.get("subject", ""), d.get("todo", "")
     except:
         return "", ""
 
@@ -141,7 +140,7 @@ def timer_thread():
             last_check_time = time.time()
             last_printed_minute = 0
             print(" ======== 자동 측정 시작 ========")
-            res = run_check(goal, task_titles)
+            res = check_now(goal, task_titles)
             if res and "messages" in res:
                 print(f" AI 피드백: {res['messages'][-1].content}")
             print_status()
@@ -208,7 +207,7 @@ def main():
         elif cmd == "":
             print("측정을 시작합니다...")
 
-            res = run_check(goal, task_titles)
+            res = check_now(goal, task_titles)
 
 
             if res and "messages" in res:

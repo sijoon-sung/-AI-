@@ -152,10 +152,10 @@ def save_log(task_name, focus_score, is_distracted):
             logs = []
 
     logs.append({
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "task": task_name,
-        "focus_score": focus_score,
-        "is_distracted": is_distracted,
+        "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "task_name": task_name,
+        "score": focus_score,
+        "distracted": is_distracted,
     })
 
     with open(log_path, "w", encoding="utf-8") as f:

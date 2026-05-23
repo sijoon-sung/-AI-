@@ -44,7 +44,7 @@ from datetime import datetime, timedelta
 AW_URL = "http://localhost:5600/api/0"
 
 # lower로 바꾸기 -> 대소문자가 바뀌어서 감지가 안되는 경우가 있었음
-BROWSERS = ["chrome", "google chrome", "msedge", "firefox", "whale", "opera", "brave"]
+BROWSERS = ["chrome", "google chrome", "msedge"]
 
 
 def get_current_app():

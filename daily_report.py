@@ -46,14 +46,14 @@ if __name__ == "__main__":
     if logs:
         total = len(logs)
         distracted = sum(
-            1 for l in logs if l.get("is_distracted"))  # key = is_distracted에서 방해를 받았지는 안 받았는지 True/False로 넣음
-        avg_score = sum(l.get("focus_score", 0) for l in logs) // total  # 평균적인 점수를 냄 -> 다 합해서 평균
+            1 for l in logs if l.get("distracted"))  # key = distracted에서 방해를 받았지는 안 받았는지 True/False로 넣음
+        avg_score = sum(l.get("score", 0) for l in logs) // total  # 평균적인 점수를 냄 -> 다 합해서 평균
         log_text = f"총 {total}회 측정됨 | 딴짓 {distracted}회 | 평균 집중점수 {avg_score}점\n\n"
         for l in logs:
-            flag = " 딴짓" if l.get("is_distracted") else "집중"
-            score = l.get("focus_score", "?")  # 없으면 ? get으로 수정
-            t = l.get("time", "")[-8:-3]
-            task = l.get("task", "미지정")  # task도 get으로 수정
+            flag = " 딴짓" if l.get("distracted") else "집중"
+            score = l.get("score", "?")  # 없으면 ? get으로 수정
+            t = l.get("check_time", "")[-8:-3]
+            task = l.get("task_name", "미지정")  # task도 get으로 수정
             log_text += f"  [{t}] {flag} {score}점 | {task}\n"
     else:
         log_text = "측정 기록 없음"
