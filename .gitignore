@@ -1,0 +1,22 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE configurations
+.idea/
+.vscode/
+
+# Local databases and temporary capture files
+data/
+
+# API credentials and security tokens (Critical!)
+auth/.env
+auth/token.json
+auth/client_secret.json
