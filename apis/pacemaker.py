@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 
-# 단독 실행시 임포트 경로 해결을 위해 추가
+# 단독 실행 -  경로 해결을 위해 추가
 sys.path.append(".")
 sys.path.append("..")
 

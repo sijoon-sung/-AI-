@@ -30,20 +30,6 @@ check_now(goal, task_titles): 10분마다 주기적으로 호출 할 수 있게 
 
 """
 
-"""
-check_screen: 모니터 화면을 스크린 샷을 한 뒤에 GEMINI에게 전송해서 시각적으로 분석
--------------------> pyautogui, Base64 
-
-get_app_log: 최근 10분간 활성화된 창과 웹 주소를 가져와서 텍스트로 요약
--------------> apis.activitywatch
-
-warn_user: 땃짓으로 감지되었을 경우에는 하단에 알림을 띄움( 알림을 9분 가격으로 띄울 수 있게 해줌)
----------------> plyer.notification
-
-save_data: 분석 점수와 딴짓 여부를 로컬 파일에 기록
-is_distracted = True일 경우 백그라운드 세레드를 생성해서 Tkinter 창을 비동기로 실행함
--------------> apis.google_tasks, apis.pacemaker
-"""
 
 import os
 import sys
@@ -143,7 +129,7 @@ tools = [screencheck, applogread, showwarning, saveresultdata]
 
 # 에이전트 실행 노드
 def runagent(state):
-    """Gemini가 상태를 보고 적절한 도구를 실행하거나 피드백을 주도록 함"""
+    #  상태를 보고 적절한 도구를 실행하거나 피드백을 주도록
     chat = ChatGoogleGenerativeAI(model="gemini-2.5-flash").bind_tools(tools)
     sysmsg = SystemMessage(content="""너는 집중도 분석 AI야
 순서:
@@ -169,7 +155,7 @@ def loopcheck(state):
 
 # 실행 함수
 def startcheck(goal, task_titles):
-    """집중도 측정을 한 번 실행하는 메인 에이전트 함수"""
+    #집중도 측정을 한 번 실행하는 메인 에이전트 함수
     print(f"[{datetime.now().strftime('%H:%M:%S')}] ----> 집중도 측정 시작")
 
     graph = StateGraph(AgentState)

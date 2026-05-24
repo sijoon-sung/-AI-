@@ -29,7 +29,6 @@ if __name__ == "__main__":
     # 오늘의 today log를 찾기 위함
     today = datetime.now().strftime("%Y-%m-%d")
 
-#===============
 # error: 로그 저장/조회 파일 경로 불일치 해결
     logpath = f"data/log_{today}.json"
 
@@ -115,14 +114,14 @@ if __name__ == "__main__":
     else:
         awtext = "ActivityWatch의 데이터 없음"
 
-    print("======Activity Watch 데이터 로드 완료======")
+    print("Activity Watch 데이터 로드")
 
     # Gemini로 리포트 생성
     print("Gemini로 리포트 작성 중")
     print("===============")
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
 
-    # LangChain의 SystemMessage는 context가 아니라 content 매개변수를 받습니다.
+ # LangChain의 SystemMessage content 매개변수를 받음
     system = SystemMessage(content="""
         너는 학생의 하루 공부를 분석해주는 AI 코치야. 주어진 데이터를 보고 한국어로 리포트를 작성해줘
 
@@ -140,7 +139,7 @@ if __name__ == "__main__":
 [집중도 측정 기록]
 {logtext}
 
-[ActivityWatch 앱/웹 사용 내역]
+[Activitywatch 앱/웹 내역]
 {awtext}""")
 
     # 아까 만들었던 logtext => 내부 JSON으로 스크린샷으로 캡처를 한 것

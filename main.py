@@ -61,7 +61,6 @@ def pick_goal():
     # 리스트 안에 드는 지도 확인해야 함
 
 
-#===============
 # error: 입력 유효성 검증 오류 해결 (유효하지 않을 때 return 하도록 수정)
     if not choice.isdigit() or not (1 <= int(choice) <= len(lists)):
         return "", ""
