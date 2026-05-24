@@ -47,7 +47,7 @@ AW_URL = "http://localhost:5600/api/0"
 BROWSERS = ["chrome", "google chrome", "msedge"]
 
 
-def get_current_app():
+def getactiveapp():
     """
     지금 사용중인 app의 정보를 반환
     브라우저는 web을 사용해서 좀 더 정확한 제목을 가져옴
@@ -56,15 +56,16 @@ def get_current_app():
     try:
         with urllib.request.urlopen(AW_URL + "/buckets/", timeout=3) as r:
             buckets = json.loads(r.read())  # buckets에 읽어오기
+    # 반드시 예외 상황을 만들어야 함 -----> 없으면 문제
     except:
         return {"app": "알 수 없음", "title": "알 수 없음", "url": "", "source": "unknown"}
 
     # window 버킷 ID, web 버킷 ID 구분해서 찾기
-    window_id = None
+    windowid = None
     web_id = None
     for b in buckets:
         if b.startswith("aw-watcher-window_"):  # 윈도우 탐지 버킷 이름
-            window_id = b
+            windowid = b
         if b.startswith("aw-watcher-web"):
             web_id = b
 
@@ -75,9 +76,9 @@ def get_current_app():
     source = "unknown"
 
     # windows에서 현재 앱 가져오기
-    if window_id != None:
+    if windowid != None:
         try:
-            with urllib.request.urlopen(AW_URL + f"/buckets/{window_id}/events?limit=1", timeout=3) as r:
+            with urllib.request.urlopen(AW_URL + f"/buckets/{windowid}/events?limit=1", timeout=3) as r:
                 events = json.loads(r.read())
             if events:
                 app = events[0]["data"]["app"]
@@ -101,8 +102,8 @@ def get_current_app():
     return {"app": app, "title": title, "url": url, "source": source}
 
 
-def get_recent_apps(minutes=10):
-    # 최근 N분 기본 10분간의 앱/웹 사용내역을 반환
+def getrecentapphistory(minutes=10):
+    # 기본 10분간의 앱/웹 사용내역을 반환
     # 반환값 = [{ "app": ..., "title": ..., "url": ..., "minutes": ..., "source": ... }, ...]
 
     try:  # 버킷 목록 가져오기
@@ -111,12 +112,12 @@ def get_recent_apps(minutes=10):
     except:
         return []
 
-    window_id = None
+    windowid = None
     web_id = None
 
     for b in buckets:
         if b.startswith("aw-watcher-window_"):
-            window_id = b
+            windowid = b
         if b.startswith("aw-watcher-web"):
             web_id = b
 
@@ -128,12 +129,12 @@ def get_recent_apps(minutes=10):
 
     results = {}  # (app, title)을 넣으면 -> {secs, source, url} 반환
 
-    if window_id != None:
+    if windowid != None:
         # window의 값이 있을 때만
         body = json.dumps({
             "timeperiods": [timeperiod],  # 시작시간/현재시간 -> 배열 (데이터를 버킷에서 가져오기 위해서)
             "query": [
-                f"events = query_bucket('{window_id}');",  # 해당 window id에 대한 이벤트 데이터를 가져옴
+                f"events = query_bucket('{windowid}');",  # 해당 window id에 대한 이벤트 데이터를 가져옴
                 "events = merge_events_by_keys(events, ['app', 'title']);",  # app, title 기준으로 이벤트를 결합해서 저장
                 "RETURN = events;"  # 최종 결과를 반환
             ]
@@ -218,31 +219,31 @@ def get_recent_apps(minutes=10):
     return output
 
 
-def get_today_apps():
+def gettodayapphistory():
     # daily_report용 호출함수
-    return get_recent_apps(minutes=60 * 24)
+    return getrecentapphistory(minutes=60 * 24)
 
 
 # 테스트
 if __name__ == "__main__":
     print("=== 현재 앱 ===")
-    c = get_current_app()
+    c = getactiveapp()
     print(f"앱: {c['app']} | 제목: {c['title']} | 출처: {c['source']}")
 
     print("\n=== 최근 10분 ===")
-    for item in get_recent_apps(10):
+    for item in getrecentapphistory(10):
         src = "[웹]" if item["source"] == "web" else "[앱]"
         print(f"{src} {item['app']} | {item['title']} | {item['minutes']}분")
 
     print("\n=== 오늘 하루 전체 사용 내역 (상위 20개) ===")
-    today_apps = get_today_apps()
+    todayapps = gettodayapphistory()
 
-    top_20_apps = today_apps[:20]
+    top20apps = todayapps[:20]
 
-    if not top_20_apps:
+    if not top20apps:
         print("오늘 기록된 앱 사용 내역 X")
     else:
-        for idx, item in enumerate(top_20_apps, 1):
+        for idx, item in enumerate(top20apps, 1):
             src = "[웹]" if item["source"] == "web" else "[앱]"
             # (앱 이름 | title | minutes )정리
             print(f"{idx:02d}. {src} {item['app']} | {item['title']}... | {item['minutes']}분")

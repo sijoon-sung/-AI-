@@ -68,9 +68,9 @@ from langgraph.prebuilt import ToolNode
 
 load_dotenv("auth/.env", override=True)
 
-from apis.activitywatch import get_current_app, get_recent_apps
-from apis.google_tasks   import save_log
-from apis.pacemaker import trigger_intervention
+from apis.activitywatch import getactiveapp, getrecentapphistory
+from apis.google_tasks   import savetojson
+from apis.pacemaker import restpopup
 
 # 알림 쿨타임용 변수
 last_alert_time = 0
@@ -80,31 +80,31 @@ class AgentState(TypedDict):
 
 # 도구 1: 화면 캡처 분석
 @tool
-def check_screen():
+def screencheck():
     """현재 모니터 화면을 캡처해서 공부중인지 딴짓하는지 분석함"""
     pyautogui.screenshot().save("data/temp.png")
 
     with open("data/temp.png", "rb") as f:
-        img_data = base64.b64encode(f.read()).decode("utf-8")
+        imgdata = base64.b64encode(f.read()).decode("utf-8")
     os.remove("data/temp.png")
 
     chat = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
     res = chat.invoke([HumanMessage(content=[
         {"type": "text", "text": "이 화면을 분석해줘:\n1. 뭘 하고 있는지 요약\n2. 딴짓 여부 (예/아니오)\n3. 이유\n."},
-        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_data}"}}
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{imgdata}"}}
     ])])
 
     return res.content
 
 # 도구 2: ActivityWatch 활동 조회
 @tool
-def get_app_log():
+def applogread():
     """최근 10분 동안 사용한 프로그램과 웹페이지 목록을 가져옴"""
-    now_app = get_current_app()
-    app_history = get_recent_apps(10)
+    now_app = getactiveapp()
+    apphistory = getrecentapphistory(10)
 
     lines = [f"현재: {now_app['app']} | {now_app['title']}"]
-    for item in app_history[:10]:
+    for item in apphistory[:10]:
         tag = "[웹]" if item["source"] == "web" else "[앱]"
         lines.append(f" {tag} {item['app']} | {item['title']} | {item['minutes']}분")
 
@@ -112,7 +112,7 @@ def get_app_log():
 
 # 도구 3: 알림창 띄우기
 @tool
-def warn_user(msg: str):
+def showwarning(msg: str):
     """사용자가 딴짓할 때 윈도우 알림으로 경고를 보냄"""
     global last_alert_time
     if time.time() - last_alert_time < 540: # 9분 쿨타임
@@ -124,67 +124,67 @@ def warn_user(msg: str):
 
 # 도구 4: 결과 저장 및 개입 UI 트리거
 @tool
-def save_data(is_distracted: bool, score: int, reason: str, task: str):
+def saveresultdata(is_distracted: bool, score: int, reason: str, task: str):
     """분석 결과를 저장하고 딴짓인 경우 경고 UI를 띄움"""
-    if save_log:
-        save_log(task, score, is_distracted)
+    if savetojson:
+        savetojson(task, score, is_distracted)
 
     import threading
     if is_distracted:
         threading.Thread(
-            target=trigger_intervention,
+            target=restpopup,
             args=(task, reason),
             daemon=True
         ).start()
 
     return f"저장 완료: {task} - {score}점"
 
-tools = [check_screen, get_app_log, warn_user, save_data]
+tools = [screencheck, applogread, showwarning, saveresultdata]
 
 # 에이전트 실행 노드
-def agent_run(state):
+def runagent(state):
     """Gemini가 상태를 보고 적절한 도구를 실행하거나 피드백을 주도록 함"""
     chat = ChatGoogleGenerativeAI(model="gemini-2.5-flash").bind_tools(tools)
-    sys_msg = SystemMessage(content="""너는 집중도 분석 AI야
+    sysmsg = SystemMessage(content="""너는 집중도 분석 AI야
 순서:
-1. check_screen() 호출 -> 화면 분석
-2. get_app_log() 호출 -> 앱 사용 내역 확인
+1. screencheck() 호출 -> 화면 분석
+2. applogread() 호출 -> 앱 사용 내역 확인
 3. 종합 판단:
-   - 딴짓이면 -> warn_user() 호출
+   - 딴짓이면 -> showwarning() 호출
    - 집중 중이면 -> 그냥 넘어가기
-4. save_data() 반드시 마지막에 호출
+4. saveresultdata() 반드시 마지막에 호출
 5. 도구 호출 다 끝나면 -> 다음 턴에 학생에게 짧은 피드백 1~2문장만 작성
    (피드백 쓰는 턴에 도구 호출 하지 마)""")
 
-    messages = [sys_msg] + state["messages"]
+    messages = [sysmsg] + state["messages"]
     res = chat.invoke(messages)
     return {"messages": [res]}
 
 # 조건부 분기 (도구 실행 여부 판단)
-def check_loop(state):
+def loopcheck(state):
     last = state["messages"][-1]
     if last.tool_calls:
         return "tools"
     return END
 
 # 실행 함수
-def check_now(goal, task_titles):
+def startcheck(goal, task_titles):
     """집중도 측정을 한 번 실행하는 메인 에이전트 함수"""
     print(f"[{datetime.now().strftime('%H:%M:%S')}] ----> 집중도 측정 시작")
 
     graph = StateGraph(AgentState)
-    graph.add_node("agent", agent_run)
+    graph.add_node("agent", runagent)
     graph.add_node("tools", ToolNode(tools))
     graph.add_edge(START, "agent")
-    graph.add_conditional_edges("agent", check_loop, {"tools": "tools", END: END})
+    graph.add_conditional_edges("agent", loopcheck, {"tools": "tools", END: END})
     graph.add_edge("tools", "agent")
     app = graph.compile()
 
-    start_msg = HumanMessage(content=f"분석 시작해줘.\n목표: {goal or '미지정'}\n할 일: {task_titles or '없음'}")
+    startmsg = HumanMessage(content=f"분석 시작해줘.\n목표: {goal or '미지정'}\n할 일: {task_titles or '없음'}")
 
-    result = app.invoke({"messages": [start_msg]})
+    result = app.invoke({"messages": [startmsg]})
     return result
 
 if __name__ == "__main__":
-    from apis.google_tasks import get_all_task_titles
-    check_now("클라우드 AI 프로그래밍", get_all_task_titles())
+    from apis.google_tasks import getalltodotitles
+    startcheck("클라우드 AI 프로그래밍", getalltodotitles())

@@ -16,9 +16,9 @@ sys.stderr.reconfigure(encoding="utf-8")
 
 
 # error: get_tasks_in_list import 누락 해결
-from apis.google_tasks import get_task_lists, get_all_task_titles, get_tasks_in_list
+from apis.google_tasks import getsubjectlist, gettodolist
 
-from checker import check_now
+from checker import startcheck
 
 # 기본적인 설정 값
 GOAL_FILE = "data/goal.json"
@@ -50,7 +50,7 @@ def load_goal():
 def pick_goal():
     # 터미널에서 과목 -> 할일 선택 해서 반환
     print("\n Google task 목표 입력\n")
-    lists = get_task_lists()
+    lists = getsubjectlist()
     if not lists:
         print("구글 Task에 goal을 넣으세요")
         return "", ""
@@ -66,22 +66,22 @@ def pick_goal():
     if not choice.isdigit() or not (1 <= int(choice) <= len(lists)):
         return "", ""
 
-    picked_list = lists[int(choice)-1] #index -1
+    pickedlist = lists[int(choice)-1] #index -1
     """
-    picked_list는 이런 형태
+    pickedlist는 이런 형태
     {
     "id": "리스트ID",
     "title": "리스트 이름"
     }
     """
 
-    picked_goal = picked_list["title"]
-    print(f"과목: {picked_goal}")
+    pickedgoal = pickedlist["title"]
+    print(f"과목: {pickedgoal}")
 
     # 과목 안에 세부적인 task 뽑기
-    tasks = get_tasks_in_list(picked_list["id"])
+    tasks = gettodolist(pickedlist["id"])
     if not tasks:
-        return picked_goal ,""
+        return pickedgoal ,""
     for i, t in enumerate(tasks):
         print(f"{i+1},{t['title']}")
     choice = input("세부task: 번호 입력 / enter = 건너뜀")
@@ -89,12 +89,12 @@ def pick_goal():
 #===============
 # error: 입력 유효성 오류 ---------> 둘 다 필요함
     if not choice.isdigit() or not (1 <= int(choice) <= len(tasks)):
-        return picked_goal, "" # 이거 picked goal은 반환을 해줘야 함 - 주의
+        return pickedgoal, "" # 이거 picked goal은 반환을 해줘야 함 - 주의
 
-    picked_task = tasks[int(choice) - 1]["title"]
+    pickedtask = tasks[int(choice) - 1]["title"]
     # 세부 테스크를 고름
-    print(f"할 일: {picked_task}")
-    return picked_goal, picked_task
+    print(f"할 일: {pickedtask}")
+    return pickedgoal, pickedtask
 
 def print_status():
     goal_str = f"{goal} {task_titles}" if goal else "미지정"
@@ -135,7 +135,7 @@ def timer_thread():
             last_check_time = time.time()
             last_printed_minute = 0
             print(" ======== 자동 측정 시작 ========")
-            res = check_now(goal, task_titles)
+            res = startcheck(goal, task_titles)
             if res and "messages" in res:
                 print(f" AI 피드백: {res['messages'][-1].content}")
             print_status()
@@ -153,14 +153,14 @@ def main():
 
 # error: 프로그램 진입점 추가
     # 이전 목표 불러오기
-    saved_goal, saved_task = load_goal()
-    if saved_goal:
-        print(f"saved goal: [{saved_goal}] {saved_task or '(없음)'}")
+    savedgoal, savedtask = load_goal()
+    if savedgoal:
+        print(f"saved goal: [{savedgoal}] {savedtask or '(없음)'}")
         change = input("목표를 바꿀까요? |y=예 / 엔터=유지|: ")
         if change == "y":
             goal, task_titles = pick_goal()
         else:
-            goal, task_titles = saved_goal, saved_task
+            goal, task_titles = savedgoal, savedtask
     else:
         goal, task_titles = pick_goal()
 
@@ -184,9 +184,9 @@ def main():
             break
 
         elif cmd == "g":
-            new_goal, new_task = pick_goal()
-            if new_goal:
-                goal, task_titles = new_goal, new_task
+            newgoal, newtask = pick_goal()
+            if newgoal:
+                goal, task_titles = newgoal, newtask
                 save_goal(goal, task_titles)
 
             print_status()
@@ -202,15 +202,15 @@ def main():
         elif cmd == "":
             print("측정을 시작합니다...")
 
-            res = check_now(goal, task_titles)
+            res = startcheck(goal, task_titles)
 
 
             if res and "messages" in res:
-                last_msg = res["messages"][-1]
+                lastmsg = res["messages"][-1]
                 print("=" * 60)
                 print(" AI의 피드백")
                 print("-" * 60)
-                print(last_msg.content)
+                print(lastmsg.content)
                 print("=" * 60)
 
 

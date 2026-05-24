@@ -17,7 +17,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build  # Gmail API 서비스 빌드를 위해 추가
 
-from apis.activitywatch import get_today_apps
+from apis.activitywatch import gettodayapphistory
 
 if __name__ == "__main__":
     print("오늘의 집중도 리포트 생성중....")
@@ -31,13 +31,13 @@ if __name__ == "__main__":
 
 #===============
 # error: 로그 저장/조회 파일 경로 불일치 해결
-    log_path = f"data/log_{today}.json"
+    logpath = f"data/log_{today}.json"
 
 
 
     logs = []
-    if os.path.exists(log_path):
-        with open(log_path, "r", encoding="utf-8") as f:
+    if os.path.exists(logpath):
+        with open(logpath, "r", encoding="utf-8") as f:
             logs = json.load(f)
 
     print(f"오늘의 측정 기록: {len(logs)}건 측정 완료")
@@ -53,17 +53,17 @@ if __name__ == "__main__":
         score_sum = 0
         for l in logs:
             score_sum += l.get("score", 0)
-        avg_score = score_sum // total  # 평균적인 점수를 냄 -> 다 합해서 평균
+        avgscore = score_sum // total  # 평균적인 점수를 냄 -> 다 합해서 평균
         
-        log_text = f"총 {total}회 측정됨 | 딴짓 {distracted}회 | 평균 집중점수 {avg_score}점\n\n"
+        logtext = f"총 {total}회 측정됨 | 딴짓 {distracted}회 | 평균 집중점수 {avgscore}점\n\n"
         for l in logs:
             flag = " 딴짓" if l.get("distracted") else "집중"
             score = l.get("score", "?")  # 없으면 ? get으로 수정
             t = l.get("check_time", "")[-8:-3]
             task = l.get("task_name", "미지정")  # task도 get으로 수정
-            log_text += f"  [{t}] {flag} {score}점 | {task}\n"
+            logtext += f"  [{t}] {flag} {score}점 | {task}\n"
     else:
-        log_text = "측정 기록 없음"
+        logtext = "측정 기록 없음"
 
     # Activity Watch 앱 내역을 가져오기
 
@@ -72,48 +72,48 @@ if __name__ == "__main__":
     aw-watcher-web (웹 브라우저 버킷):
     """
     print("ActivityWatch 데이터 수집 중...")
-    apps = get_today_apps()  # 함수 불러오기
+    apps = gettodayapphistory()  # 함수 불러오기
     
     # 1분 미만은 제거
     # 계속해서 앱이 바뀌는 순간까지 포착을 하기 때문에 많은 로그들이 나옴 -> 1분 미만은 제거함
-    filtered_apps = []
+    filteredapps = []
     for a in apps:
         if a["minutes"] >= 1.0:
-            filtered_apps.append(a)
-    apps = filtered_apps
+            filteredapps.append(a)
+    apps = filteredapps
 
     if apps:
-        aw_text = ""
-        web_items = []
-        app_items = []
+        awtext = ""
+        webitems = []
+        appitems = []
         # 둘의 데이터가 겹치지 않는 부분이 있어서 나눔
         for a in apps:
             if a["source"] == "web":
-                web_items.append(a)
+                webitems.append(a)
             else:
-                app_items.append(a)
+                appitems.append(a)
 
-        if app_items:
-            aw_text += "====== 로컬 앱 =========="
-            for item in app_items[:20]:  # 일단은 다 보여주는 게 아니라 상위(정렬이 되어서 받아옴) 20개만
+        if appitems:
+            awtext += "====== 로컬 앱 =========="
+            for item in appitems[:20]:  # 일단은 다 보여주는 게 아니라 상위(정렬이 되어서 받아옴) 20개만
                 # 형식을 맞추기
-                aw_text += f"  {item['app']} | {int(item['minutes'])}분 | {item['title'][:50]}\n"
+                awtext += f"  {item['app']} | {int(item['minutes'])}분 | {item['title'][:50]}\n"
 
-        if web_items:
-            aw_text += "\n=== 브라우저 탭 ===\n"
-            for item in web_items[:35]:
+        if webitems:
+            awtext += "\n=== 브라우저 탭 ===\n"
+            for item in webitems[:35]:
                 # 웹은 chrome / edge의 이름만이 나오ㅓ기 때문에 ['app']은 빼고 적음
-                aw_text += f"  {int(item['minutes'])}분 | {item['title'][:50]}\n"
+                awtext += f"  {int(item['minutes'])}분 | {item['title'][:50]}\n"
 
                 if item.get("url"):  # url 주소가 있으면
-                    aw_text += f"    ㄴ-----{item['url']}"
+                    awtext += f"    ㄴ-----{item['url']}"
 
         total_mins = 0
         for a in apps:
             total_mins += a["minutes"]
-        aw_text += f"\n total 컴퓨터 사용: {int(total_mins)}분 ({int(total_mins / 60)}시간)"  # 시간/분으로 바꾸기 --- 보기 안좋음
+        awtext += f"\n total 컴퓨터 사용: {int(total_mins)}분 ({int(total_mins / 60)}시간)"  # 시간/분으로 바꾸기 --- 보기 안좋음
     else:
-        aw_text = "ActivityWatch의 데이터 없음"
+        awtext = "ActivityWatch의 데이터 없음"
 
     print("======Activity Watch 데이터 로드 완료======")
 
@@ -138,13 +138,13 @@ if __name__ == "__main__":
     # 전역 레벨이 아닌 if __name__ 내부로 들여쓰기하여 NameError 방지
     user = HumanMessage(content=f"""
 [집중도 측정 기록]
-{log_text}
+{logtext}
 
 [ActivityWatch 앱/웹 사용 내역]
-{aw_text}""")
+{awtext}""")
 
-    # 아까 만들었던 log_text => 내부 JSON으로 스크린샷으로 캡처를 한 것
-    # aw_text => 외부 API 로 부터 받은 상위 30개의 목록
+    # 아까 만들었던 logtext => 내부 JSON으로 스크린샷으로 캡처를 한 것
+    # awtext => 외부 API 로 부터 받은 상위 30개의 목록
 
     response = llm.invoke([system, user])
     report = response.content

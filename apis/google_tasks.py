@@ -28,9 +28,6 @@ CHP 7 memory management 복습,
 
 5. save_log(task_name, focus_score, is_distracted)
 역할: 현재 수행 중인 작업명과 집중도 측정 결과를 로컬 JSON 파일에 저장
-특징: data/log_YYYY-MM-DD.json 형태로 날짜별로 분리해서 저장, 기존에 있으면 append
-
-
 """
 
 import os
@@ -48,68 +45,67 @@ load_dotenv("../auth/.env", override=True)
 SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/auth/gmail.send"]
 
 
-def _login():
+def google_login():
     creds = None
 
-    # 폴더 경로에 대한 오류를 AI의 도움으로 해결함 -----------------------------------
-    # 1. 현재 파일(apis/google_tasks.py) 기준 최상위 프로젝트 루트 경로 계산
-    current_dir = os.path.dirname(os.path.abspath(__file__))  # apis 폴더
-    project_root = os.path.dirname(current_dir)  # PythonProject 루트 폴더
+    # 폴더 경로에 대한 오류를 AI의 도움으로 해결함
+    currentdir = os.path.dirname(os.path.abspath(__file__))  # apis 폴더
+    project_root = os.path.dirname(currentdir)  # PythonProject 루트 폴더
 
     # 2. 루트 폴더 아래의 auth 폴더 및 파일 경로 설정
-    auth_dir = os.path.join(project_root, "auth")
+    authdir = os.path.join(project_root, "auth")
 
 
-    token_path = os.path.join(auth_dir, "token.json")
-    secret_path = os.path.join(auth_dir, "client_secret.json")
+    tokenpath = os.path.join(authdir, "token.json")
+    secretpath = os.path.join(authdir, "client_secret.json")
 
 
-    if os.path.exists(token_path):
-        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+    if os.path.exists(tokenpath):
+        creds = Credentials.from_authorized_user_file(tokenpath, SCOPES)
 
-    # 4. 토큰이 없거나 만료된 경우 처리
+    # 토큰이 없거 경우
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
 
         if not creds:
             # client_secret.json 파일이 지정한 위치에 있는지 확인
-            if not os.path.exists(secret_path):
+            if not os.path.exists(secretpath):
                 raise FileNotFoundError(
-                    f"인증 파일이 없습니다. 지정된 위치를 확인하세요:\n{secret_path}"
+                    f"인증 파일이 없습니다. 지정된 위치를 확인하세요:\n{secretpath}"
                 )
 
             print("구글 로그인 창이 열립니다...")
-            flow = InstalledAppFlow.from_client_secrets_file(secret_path, SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(secretpath, SCOPES)
             creds = flow.run_local_server(port=0)
 
         # 로그인 후 새로 발급받은 토큰 저장
-        with open(token_path, "w", encoding="utf-8") as f:
+        with open(tokenpath, "w", encoding="utf-8") as f:
             f.write(creds.to_json())
 
     return creds
 
 
 
-def get_task_lists():
+def getsubjectlist():
     # 과목(리스트) 목록 반환
     # [{"id": ..., "title": ...}, ...]
-    service = build("tasks", "v1", credentials=_login())
+    service = build("tasks", "v1", credentials=google_login())
     result = service.tasklists().list().execute()
     
     items = result.get("items", [])
-    result_list = []
+    resultlist = []
     for item in items:
-        result_list.append({
+        resultlist.append({
             "id": item["id"],
             "title": item["title"]
         })
-    return result_list
+    return resultlist
 
 
-def get_all_task_titles():
+def getalltodotitles():
     # 모든 할일을 csv 형태(,)로 구분해서 반환
-    service = build("tasks", "v1", credentials=_login())
+    service = build("tasks", "v1", credentials=google_login())
     lists = service.tasklists().list(maxResults=20).execute()
     titles = []
 
@@ -130,29 +126,28 @@ def get_all_task_titles():
 
 #===============
 # error: get_tasks_in_list 함수를 따로 만듬 -> list로 쓸 떄
-def get_tasks_in_list(list_id):
-    service = build("tasks", "v1", credentials=_login())
+def gettodolist(list_id):
+    service = build("tasks", "v1", credentials=google_login())
     tasks_result = service.tasks().list(tasklist=list_id, showCompleted=False).execute()
     
     items = tasks_result.get("items", [])
-    result_list = []
+    resultlist = []
     for item in items:
-        result_list.append({
+        resultlist.append({
             "id": item["id"],
             "title": item["title"]
         })
-    return result_list
+    return resultlist
 # ==============
 
-
-def save_log(task_name, focus_score, is_distracted):
+def savetojson(task_name, focus_score, is_distracted):
     # 집중도 측정 결과 => data/log_YYYY-MM-DD.json 에 저장
     today = datetime.now().strftime("%Y-%m-%d")
-    log_path = f"data/log_{today}.json"  # 날마다 다른 파일
+    logpath = f"data/log_{today}.json"  # 날마다 다른 파일
     logs = []
 
-    if os.path.exists(log_path):
-        with open(log_path, "r", encoding="utf-8") as f:
+    if os.path.exists(logpath):
+        with open(logpath, "r", encoding="utf-8") as f:
             logs = json.load(f)
 
     logs.append({
@@ -162,20 +157,20 @@ def save_log(task_name, focus_score, is_distracted):
         "distracted": is_distracted,
     })
 
-    with open(log_path, "w", encoding="utf-8") as f:
+    with open(logpath, "w", encoding="utf-8") as f:
         json.dump(logs, f, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":
     print("===과목 목록===")
     try:
-        for lst in get_task_lists():
+        for lst in getsubjectlist():
             print(f"{lst['title']}")
     except Exception as e:
         print(f"과목 목록 가져오기 실패: {e}")
 
     print("\n==== 전체 할 일 =========")
     try:
-        print(get_all_task_titles())
+        print(getalltodotitles())
     except Exception as e:
         print(f"할 일 목록 가져오기 실패: {e}")
