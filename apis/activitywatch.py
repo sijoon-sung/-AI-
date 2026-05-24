@@ -1,6 +1,6 @@
 # ActivityWatch 로컬 서버(http://localhost:5600)에서 앱 사용 정보를 가져옴
 """
-get_current_app(): 현재 띄우고 있는 앱 정보를 1개 가져옴
+getactiveapp(): 현재 띄우고 있는 앱 정보를 1개 가져옴
                  : 브라우저를 쓰고 있으면 윈도우 대신 web에서 정보를 받아올 수 있게 함
 
 {

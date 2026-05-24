@@ -12,7 +12,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 # 환경 변수
 load_dotenv("auth/.env", override=True)
 
-# 1. 타임라인 데이터 수집 (AW 연동 실패 시 Mock 데이터 반환)
+# 타임라인 데이터 수집 (연동이 안되면 데이터 반환)
 def get_timeline():
     try:
         from apis.activitywatch import getrecentapphistory

@@ -48,16 +48,12 @@ SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/a
 def google_login():
     creds = None
 
-    # 폴더 경로에 대한 오류를 AI의 도움으로 해결함
-    currentdir = os.path.dirname(os.path.abspath(__file__))  # apis 폴더
-    project_root = os.path.dirname(currentdir)  # PythonProject 루트 폴더
-
-    # 2. 루트 폴더 아래의 auth 폴더 및 파일 경로 설정
-    authdir = os.path.join(project_root, "auth")
-
-
-    tokenpath = os.path.join(authdir, "token.json")
-    secretpath = os.path.join(authdir, "client_secret.json")
+    # auth 폴더 경로 지정 (단독 실행 등 경로가 안 맞을 경우 대비)
+    tokenpath = "auth/token.json"
+    secretpath = "auth/client_secret.json"
+    if not os.path.exists(tokenpath):
+        tokenpath = "../auth/token.json"
+        secretpath = "../auth/client_secret.json"
 
 
     if os.path.exists(tokenpath):
