@@ -35,6 +35,7 @@ import os
 import sys
 import base64
 import time
+import cv2
 from datetime import datetime
 from typing import Annotated, TypedDict
 
@@ -67,7 +68,7 @@ class AgentState(TypedDict):
 # 도구 1: 화면 캡처 분석
 @tool
 def screencheck():
-    """현재 모니터 화면을 캡처해서 공부중인지 딴짓하는지 분석함"""
+    # 현재 모니터 캡쳐
     pyautogui.screenshot().save("data/temp.png")
 
     with open("data/temp.png", "rb") as f:
@@ -85,7 +86,7 @@ def screencheck():
 # 도구 2: ActivityWatch 활동 조회
 @tool
 def applogread():
-    """최근 10분 동안 사용한 프로그램과 웹페이지 목록을 가져옴"""
+    # 최근 10분동안의 활동 로그
     now_app = getactiveapp()
     apphistory = getrecentapphistory(10)
 
@@ -99,7 +100,7 @@ def applogread():
 # 도구 3: 알림창 띄우기
 @tool
 def showwarning(msg: str):
-    """사용자가 딴짓할 때 윈도우 알림으로 경고를 보냄"""
+    # 사용자가 딴짓을 한다고 생각하면 경고
     global last_alert_time
     if time.time() - last_alert_time < 540: # 9분 쿨타임
         return "최근에 경고를 이미 보냈음"
@@ -108,10 +109,10 @@ def showwarning(msg: str):
     last_alert_time = time.time()
     return "경고 전송 완료"
 
-# 도구 4: 결과 저장 및 개입 UI 트리거
+# 도구 4: 결과 저장 / 트리거 분석
 @tool
 def saveresultdata(is_distracted: bool, score: int, reason: str, task: str):
-    """분석 결과를 저장하고 딴짓인 경우 경고 UI를 띄움"""
+    # 분석결과를 저장하고 UI에 띄우기
     if savetojson:
         savetojson(task, score, is_distracted)
 
@@ -125,22 +126,31 @@ def saveresultdata(is_distracted: bool, score: int, reason: str, task: str):
 
     return f"저장 완료: {task} - {score}점"
 
-tools = [screencheck, applogread, showwarning, saveresultdata]
+@tool
+def get_pose():
+    # 파일에 저장된 사용자 자세 정보를 읽음
+    import json
+    try:
+        with open("data/posture_status.json", "r", encoding="utf-8") as f:
+            d = json.load(f)
+        return d.get("msg", "상태 조회 실패")
+    except:
+        return "데이터 없음"
+
+tools = [screencheck, applogread, get_pose, showwarning, saveresultdata]
 
 # 에이전트 실행 노드
 def runagent(state):
     #  상태를 보고 적절한 도구를 실행하거나 피드백을 주도록
     chat = ChatGoogleGenerativeAI(model="gemini-2.5-flash").bind_tools(tools)
-    sysmsg = SystemMessage(content="""너는 집중도 분석 AI야
-순서:
-1. screencheck() 호출 -> 화면 분석
-2. applogread() 호출 -> 앱 사용 내역 확인
-3. 종합 판단:
-   - 딴짓이면 -> showwarning() 호출
-   - 집중 중이면 -> 그냥 넘어가기
-4. saveresultdata() 반드시 마지막에 호출
-5. 도구 호출 다 끝나면 -> 다음 턴에 학생에게 짧은 피드백 1~2문장만 작성
-   (피드백 쓰는 턴에 도구 호출 하지 마)""")
+    sysmsg = SystemMessage(content="""너는 집중 코치야. 아래 순서로 도구를 실행해줘:
+1. screencheck, applogread, get_pose 순으로 사용자 상태를 확인한다.
+2. 결과 분석:
+   - 자리 비움: 경고 없이 집중도 데이터 저장(saveresultdata) 후 종료.
+   - 딴짓 중: 경고(showwarning) 후 저장. (자세 경고도 포함)
+   - 공부 중 + 나쁜 자세: 자세 경고(showwarning) 후 저장.
+   - 공부 중 + 바른 자세: 경고 없이 저장.
+3. 분석 완료 후 반드시 saveresultdata()를 호출하고, 학생에게 짧은 격려 피드백 1줄을 남긴다.""")
 
     messages = [sysmsg] + state["messages"]
     res = chat.invoke(messages)

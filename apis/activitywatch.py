@@ -44,7 +44,7 @@ from datetime import datetime, timedelta
 AW_URL = "http://localhost:5600/api/0"
 
 # lower로 바꾸기 -> 대소문자가 바뀌어서 감지가 안되는 경우가 있었음
-BROWSERS = ["chrome", "google chrome", "msedge"]
+BROWSERS = ["chrome", "google chrome"]
 
 
 def getactiveapp():
@@ -223,27 +223,3 @@ def gettodayapphistory():
     # daily_report용 호출함수
     return getrecentapphistory(minutes=60 * 24)
 
-
-# 테스트
-if __name__ == "__main__":
-    print("=== 현재 앱 ===")
-    c = getactiveapp()
-    print(f"앱: {c['app']} | 제목: {c['title']} | 출처: {c['source']}")
-
-    print("\n=== 최근 10분 ===")
-    for item in getrecentapphistory(10):
-        src = "[웹]" if item["source"] == "web" else "[앱]"
-        print(f"{src} {item['app']} | {item['title']} | {item['minutes']}분")
-
-    print("\n=== 오늘 하루 전체 사용 내역 (상위 20개) ===")
-    todayapps = gettodayapphistory()
-
-    top20apps = todayapps[:20]
-
-    if not top20apps:
-        print("오늘 기록된 앱 사용 내역 X")
-    else:
-        for idx, item in enumerate(top20apps, 1):
-            src = "[웹]" if item["source"] == "web" else "[앱]"
-            # (앱 이름 | title | minutes )정리
-            print(f"{idx:02d}. {src} {item['app']} | {item['title']}... | {item['minutes']}분")

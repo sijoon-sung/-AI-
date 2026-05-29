@@ -1,13 +1,16 @@
 import os
-from datetime import datetime
+import sys
 import json
 import base64
+from datetime import datetime
 from email.message import EmailMessage
-
 from dotenv import load_dotenv
-from pyexpat import model
 
-# load_dotenv 함수를 사용해서 각각 다른 경로를 부르는 걸로 해결...
+# 한글 깨짐 방지 설정
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
+# 환경 변수 로드 (.env 설정)
 load_dotenv("auth/.env")
 load_dotenv(".env")
 
@@ -15,142 +18,107 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build  # Gmail API 서비스 빌드를 위해 추가
-
+from googleapiclient.discovery import build
 from apis.activitywatch import gettodayapphistory
 
 if __name__ == "__main__":
     print("오늘의 집중도 리포트 생성중....")
     print("=" * 50)
 
-    # 2가지의 로그를 읽은 거 => 내부 JSON 집중도 측정 로그 / activity_watch의 localDB
-    # 집중도 측정 로그 읽기
-
-    # 오늘의 today log를 찾기 위함
+    # 오늘의 JSON 파일 읽기
     today = datetime.now().strftime("%Y-%m-%d")
-
-# error: 로그 저장/조회 파일 경로 불일치 해결
-    logpath = f"data/log_{today}.json"
-
-
+    log_path = f"data/log_{today}.json"
 
     logs = []
-    if os.path.exists(logpath):
-        with open(logpath, "r", encoding="utf-8") as f:
+    if os.path.exists(log_path):
+        with open(log_path, "r", encoding="utf-8") as f:
             logs = json.load(f)
 
     print(f"오늘의 측정 기록: {len(logs)}건 측정 완료")
 
-    # 로그 텍스트 파싱
     if logs:
         total = len(logs)
-        distracted = 0
-        for l in logs:
-            if l.get("distracted"):  # key = distracted에서 방해를 받았지는 안 받았는지 True/False로 넣음
-                distracted += 1
-        
-        score_sum = 0
-        for l in logs:
-            score_sum += l.get("score", 0)
-        avgscore = score_sum // total  # 평균적인 점수를 냄 -> 다 합해서 평균
-        
-        logtext = f"총 {total}회 측정됨 | 딴짓 {distracted}회 | 평균 집중점수 {avgscore}점\n\n"
+        # 땃짓 횟수
+        distracted = sum(1 for l in logs if l.get("distracted"))
+        # 평균 점수
+        score_sum = sum(l.get("score", 0) for l in logs)
+        avg_score = score_sum // total
+
+        log_text = f" {total}회 | 딴짓 {distracted} | 평균 집중점수 {avg_score}점\n\n"
+
+        # 상세 내역 텍스트
         for l in logs:
             flag = " 딴짓" if l.get("distracted") else "집중"
-            score = l.get("score", "?")  # 없으면 ? get으로 수정
-            t = l.get("check_time", "")[-8:-3]
-            task = l.get("task_name", "미지정")  # task도 get으로 수정
-            logtext += f"  [{t}] {flag} {score}점 | {task}\n"
+            score = l.get("score", "?")
+            time_str = l.get("check_time", "")[-8:-3]  # hh:mm 형식
+            task = l.get("task_name", "미지정")
+            log_text += f"  [{time_str}] {flag} {score}점 | {task}\n"
     else:
-        logtext = "측정 기록 없음"
+        log_text = "측정 기록 없음"
 
-    # Activity Watch 앱 내역을 가져오기
+    # Activity Watch 기록 가져옴
+    apps = gettodayapphistory()
 
-    """
-    aw-watcher-window (로컬 앱 버킷):
-    aw-watcher-web (웹 브라우저 버킷):
-    """
-    print("ActivityWatch 데이터 수집 중...")
-    apps = gettodayapphistory()  # 함수 불러오기
-    
-    # 1분 미만은 제거
-    # 계속해서 앱이 바뀌는 순간까지 포착을 하기 때문에 많은 로그들이 나옴 -> 1분 미만은 제거함
-    filteredapps = []
-    for a in apps:
-        if a["minutes"] >= 1.0:
-            filteredapps.append(a)
-    apps = filteredapps
+    # 1분 미만 ---> 필터링
+    apps = [a for a in apps if a["minutes"] >= 1.0]
 
     if apps:
-        awtext = ""
-        webitems = []
-        appitems = []
-        # 둘의 데이터가 겹치지 않는 부분이 있어서 나눔
-        for a in apps:
-            if a["source"] == "web":
-                webitems.append(a)
-            else:
-                appitems.append(a)
+        aw_text = ""
 
-        if appitems:
-            awtext += "====== 로컬 앱 =========="
-            for item in appitems[:20]:  # 일단은 다 보여주는 게 아니라 상위(정렬이 되어서 받아옴) 20개만
-                # 형식을 맞추기
-                awtext += f"  {item['app']} | {int(item['minutes'])}분 | {item['title'][:50]}\n"
+        # 로컬 앱 / web 분리
+        app_items = [a for a in apps if a["source"] != "web"]
+        web_items = [a for a in apps if a["source"] == "web"]
 
-        if webitems:
-            awtext += "\n=== 브라우저 탭 ===\n"
-            for item in webitems[:35]:
-                # 웹은 chrome / edge의 이름만이 나오ㅓ기 때문에 ['app']은 빼고 적음
-                awtext += f"  {int(item['minutes'])}분 | {item['title'][:50]}\n"
+        if app_items:
+            aw_text += "로컬 앱:"
+            for item in app_items[:20]:  # 상위 20개만 출력
+                aw_text += f"  {item['app']} | {int(item['minutes'])}분 | {item['title'][:50]}\n"
 
-                if item.get("url"):  # url 주소가 있으면
-                    awtext += f"    ㄴ-----{item['url']}"
+        if web_items:
+            aw_text += "브라우저 탭: "
+            for item in web_items[:35]:  # 상위 20개만 출력
+                aw_text += f"  {int(item['minutes'])}분 | {item['title'][:50]}\n"
+                if item.get("url"):
+                    aw_text += f" : {item['url']}\n"
 
-        total_mins = 0
-        for a in apps:
-            total_mins += a["minutes"]
-        awtext += f"\n total 컴퓨터 사용: {int(total_mins)}분 ({int(total_mins / 60)}시간)"  # 시간/분으로 바꾸기 --- 보기 안좋음
+        # 오늘 총 사용 시간 계산 (sum 사용)
+        total_mins = sum(a["minutes"] for a in apps)
+        aw_text += f"\n total 컴퓨터 사용: {int(total_mins)}분 ({int(total_mins / 60)}시간)"
     else:
-        awtext = "ActivityWatch의 데이터 없음"
+        aw_text = "ActivityWatch의 데이터 없음"
 
-    print("Activity Watch 데이터 로드")
+    print("Activity Watch 데이터 로드 완료")
 
-    # Gemini로 리포트 생성
-    print("Gemini로 리포트 작성 중")
-    print("===============")
+    #  리포트 생성
+    print("Gemini로 리포트 작성 중.")
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
 
- # LangChain의 SystemMessage content 매개변수를 받음
-    system = SystemMessage(content="""
-        너는 학생의 하루 공부를 분석해주는 AI 코치야. 주어진 데이터를 보고 한국어로 리포트를 작성해줘
+    system_message = SystemMessage(content="""
+        너는 학생의 하루 공부를 분석해주는 AI야. 준 데이터를 보고 리포트를 작성해줘
 
         출력 형식:
         ------------------------
-        1. 오늘의 집중도 요약: 측정 통계 요약
+        1. 오늘의 집중도 요약: 통계요약
         2. 잘한 점: 구체적으로 집중한 시간이나 구체적인 task 명시
         3. 반성할 점: 데이터를 근거로 아쉬운점 하나
-        4. 내일을 위한 조언 하나
-        5. 오늘의 생산성 점수: XX 점 / 100 점
+        4. 내일의 조언 하나
+        5. 생산성 점수: XX 점 / 100 점
     """)
 
-    # 전역 레벨이 아닌 if __name__ 내부로 들여쓰기하여 NameError 방지
-    user = HumanMessage(content=f"""
+    user_message = HumanMessage(content=f"""
 [집중도 측정 기록]
-{logtext}
+{log_text}
 
-[Activitywatch 앱/웹 내역]
-{awtext}""")
+[Activitywatch 내역]
+{aw_text}""")
 
-    # 아까 만들었던 logtext => 내부 JSON으로 스크린샷으로 캡처를 한 것
-    # awtext => 외부 API 로 부터 받은 상위 30개의 목록
-
-    response = llm.invoke([system, user])
+    # AI 호출 + 결과
+    response = llm.invoke([system_message, user_message])
     report = response.content
-
     print(report)
 
-    # 4. 이메일 발송
+    # Gmail API -----> 나에게 메일 전송
+    print("이메일 발송 중...")
     SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
     creds = None
     service = None
@@ -171,12 +139,13 @@ if __name__ == "__main__":
     my_email = os.getenv("MY_EMAIL", "sijoon0404@gmail.com")
 
     msg = EmailMessage()
-    msg["Subject"] = f"오늘의 집중도 리포트 ({datetime.now().strftime('%m월 %d일')})"
+    msg["Subject"] = f"집중도 리포트 :({datetime.now().strftime('%m월 %d일')})"
     msg["From"] = my_email
     msg["To"] = my_email
-    msg.set_content(report)  # 속성 대입(=)이 아닌 메서드 함수 호출로 수정
+    msg.set_content(report)
 
-    encoded = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    service.users().messages().send(userId="me", body={"raw": encoded}).execute()
-    print("이메일로 보냈습니다!")
+    # 이메일 변환 후 발송
+    encoded_message = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    service.users().messages().send(userId="me", body={"raw": encoded_message}).execute()
 
+    print("이메일이 정상적으로 전송")
