@@ -15,9 +15,9 @@ from checker import startcheck
 # 전역 변수 설정
 GOAL_FILE = "data/goal.json"
 interval = 10 * 60  # 기본 주기 10분
-running = True
-goal = ""
-task_titles = ""
+running = True # 돌고 있는지
+goal = "" # 목표
+task_titles = "" #task의 title
 
 # 마지막 시간 체크  ----- 알람이 계속 오는 것을 방지
 last_check_time = time.time()
@@ -62,11 +62,7 @@ def pick_goal():
         return pickedgoal, ""
     for i, t in enumerate(tasks):
         print(f"{i + 1}. {t['title']}")
-    choice = input("세부할일 번호 입력 (엔터치면 건너뜀) ")
-
-    # 잘못 입력하면 세부 할 일은 빈값으로 리턴
-    if not choice.isdigit() or not (1 <= int(choice) <= len(tasks)):
-        return pickedgoal, ""
+    choice = input("세부할일 번호 입력 (엔터 건너뜀) ")
 
     pickedtask = tasks[int(choice) - 1]["title"]
     print(f"할 일 선택됨: {pickedtask}")
@@ -84,8 +80,6 @@ def print_status():
 
     print()
     print(" [에이전트 상태]")
-    print(f"현재목표: {goal_str}")
-    print(f"주기: {interval // 60}분")
     print(f"다음 측정까지 남은 시간: {rem_min}분 {rem_sec}초")
     print()
     print("엔터: 지금 측정 | g: 목표 변경 | t: 주기 변경 | q: 프로그램 종료")
@@ -100,12 +94,9 @@ def timer_thread():
         # 설정한 주기가 지났는지 체크
         if time.time() - last_check_time >= interval:
             last_check_time = time.time()
-
-            print(" ======== 자동 집중도 측정 시작 ========")
             res = startcheck(goal, task_titles)
-
             if res and "messages" in res:
-                print(f" AI 피드백: {res['messages'][-1].content}")
+                print(res["messages"][-1].content)
             print_status()
 
 # 메인 실행부
@@ -154,32 +145,20 @@ def main():
             print_status()
 
         elif cmd == "t":
-            new_interval = input(f"새 주기 입력: ")
-            if new_interval.isdigit() and int(new_interval) > 0:
-                interval = int(new_interval) * 60
-                print(f"측정 주기 {new_interval}분으로 변경")
-            else:
-                print("올바른 숫자가 아님")
+            new_interval = int(input(f"새 주기 입력: "))
+            interval = new_interval * 60
+            print(f"측정 주기 {new_interval}분으로 변경")
             print_status()
 
         elif cmd == "":
-            print("수동 측정을 시작합니다...")
             res = startcheck(goal, task_titles)
-
             if res and "messages" in res:
-                lastmsg = res["messages"][-1]
-                print("=" * 60)
-                print(" AI 피드백 결과")
-                print("-" * 60)
-                print(lastmsg.content)
-                print("=" * 60)
-
+                print(res["messages"][-1].content)
             last_check_time = time.time()  # 타이머 리셋
             print_status()
         else:
             print("잘못된 명령")
             print_status()
-
 
 if __name__ == "__main__":
     main()

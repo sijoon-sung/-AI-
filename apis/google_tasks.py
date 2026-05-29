@@ -48,7 +48,7 @@ SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/a
 def google_login():
     creds = None
 
-    # auth 폴더 경로 지정 (단독 실행 등 경로가 안 맞을 경우 대비)
+    # auth 폴더 경로 지정
     tokenpath = "auth/token.json"
     secretpath = "auth/client_secret.json"
     if not os.path.exists(tokenpath):
@@ -137,7 +137,7 @@ def gettodolist(list_id):
 # ==============
 
 def savetojson(task_name, focus_score, is_distracted):
-    # 집중도 측정 결과 => data/log_YYYY-MM-DD.json 에 저장
+    # 집중도 측정 결과 => data.json 에 저장
     today = datetime.now().strftime("%Y-%m-%d")
     logpath = f"data/log_{today}.json"  # 날마다 다른 파일
     logs = []
@@ -155,18 +155,3 @@ def savetojson(task_name, focus_score, is_distracted):
 
     with open(logpath, "w", encoding="utf-8") as f:
         json.dump(logs, f, ensure_ascii=False, indent=2)
-
-
-if __name__ == "__main__":
-    print("===과목 목록===")
-    try:
-        for lst in getsubjectlist():
-            print(f"{lst['title']}")
-    except Exception as e:
-        print(f"과목 목록 가져오기 실패: {e}")
-
-    print("\n==== 전체 할 일 =========")
-    try:
-        print(getalltodotitles())
-    except Exception as e:
-        print(f"할 일 목록 가져오기 실패: {e}")

@@ -68,6 +68,7 @@ class AgentState(TypedDict):
 # 도구 1: 화면 캡처 분석
 @tool
 def screencheck():
+    """현재 모니터 화면을 캡처하고 분석합니다."""
     # 현재 모니터 캡쳐
     pyautogui.screenshot().save("data/temp.png")
 
@@ -86,20 +87,21 @@ def screencheck():
 # 도구 2: ActivityWatch 활동 조회
 @tool
 def applogread():
+    """최근 10분 동안의 사용자 앱 사용 로그를 조회합니다."""
     # 최근 10분동안의 활동 로그
     now_app = getactiveapp()
     apphistory = getrecentapphistory(10)
 
     lines = [f"현재: {now_app['app']} | {now_app['title']}"]
     for item in apphistory[:10]:
-        tag = "[웹]" if item["source"] == "web" else "[앱]"
-        lines.append(f" {tag} {item['app']} | {item['title']} | {item['minutes']}분")
+        lines.append(f" [앱] {item['app']} | {item['title']} | {item['minutes']}분")
 
     return "\n".join(lines)
 
 # 도구 3: 알림창 띄우기
 @tool
 def showwarning(msg: str):
+    """집중력 저하 경고 또는 자세 불량 알림을 사용자에게 보냅니다."""
     # 사용자가 딴짓을 한다고 생각하면 경고
     global last_alert_time
     if time.time() - last_alert_time < 540: # 9분 쿨타임
@@ -112,6 +114,7 @@ def showwarning(msg: str):
 # 도구 4: 결과 저장 / 트리거 분석
 @tool
 def saveresultdata(is_distracted: bool, score: int, reason: str, task: str):
+    """사용자의 집중도 분석 결과를 저장하고 관련 팝업을 실행합니다."""
     # 분석결과를 저장하고 UI에 띄우기
     if savetojson:
         savetojson(task, score, is_distracted)
@@ -128,6 +131,7 @@ def saveresultdata(is_distracted: bool, score: int, reason: str, task: str):
 
 @tool
 def get_pose():
+    """사용자의 실시간 신체 자세 상태 정보를 가져옵니다."""
     # 파일에 저장된 사용자 자세 정보를 읽음
     import json
     try:
@@ -141,22 +145,22 @@ tools = [screencheck, applogread, get_pose, showwarning, saveresultdata]
 
 # 에이전트 실행 노드
 def runagent(state):
-    #  상태를 보고 적절한 도구를 실행하거나 피드백을 주도록
+    #  적절한 도구 실행 / 피드백을 주도록
     chat = ChatGoogleGenerativeAI(model="gemini-2.5-flash").bind_tools(tools)
-    sysmsg = SystemMessage(content="""너는 집중 코치야. 아래 순서로 도구를 실행해줘:
+    sysmsg = SystemMessage(content="""너는 집중 코치야. 순서대로 도구를 실행해줘:
 1. screencheck, applogread, get_pose 순으로 사용자 상태를 확인한다.
 2. 결과 분석:
-   - 자리 비움: 경고 없이 집중도 데이터 저장(saveresultdata) 후 종료.
-   - 딴짓 중: 경고(showwarning) 후 저장. (자세 경고도 포함)
-   - 공부 중 + 나쁜 자세: 자세 경고(showwarning) 후 저장.
-   - 공부 중 + 바른 자세: 경고 없이 저장.
-3. 분석 완료 후 반드시 saveresultdata()를 호출하고, 학생에게 짧은 격려 피드백 1줄을 남긴다.""")
+   - 자리 비움: 경고 없이 집중도 데이터 저장(saveresultdata) 후 종료
+   - 딴짓 중+ 나쁜 자세: 경고(showwarning) 후 저장 (자세 경고도 포함)
+   - 공부 중 + 나쁜 자세: 자세 경고(showwarning) 후 저장 
+   - 공부 중 + 바른 자세: 경고 없이 저장 
+3. 분석 완료 후 반드시 saveresultdata를 호출하고, 학생에게 짧은 피드백 1줄을 남긴다.""")
 
     messages = [sysmsg] + state["messages"]
     res = chat.invoke(messages)
     return {"messages": [res]}
 
-# 조건부 분기 (도구 실행 여부 판단)
+# 조건부 분기
 def loopcheck(state):
     last = state["messages"][-1]
     if last.tool_calls:
@@ -166,7 +170,6 @@ def loopcheck(state):
 # 실행 함수
 def startcheck(goal, task_titles):
     #집중도 측정을 한 번 실행하는 메인 에이전트 함수
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] ----> 집중도 측정 시작")
 
     graph = StateGraph(AgentState)
     graph.add_node("agent", runagent)

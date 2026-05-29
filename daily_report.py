@@ -16,10 +16,9 @@ load_dotenv(".env")
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from apis.activitywatch import gettodayapphistory
+from apis.google_tasks import google_login
 
 if __name__ == "__main__":
     print("오늘의 집중도 리포트 생성중....")
@@ -56,32 +55,16 @@ if __name__ == "__main__":
     else:
         log_text = "측정 기록 없음"
 
-    # Activity Watch 기록 가져옴
+    print("ActivityWatch 데이터 수집 중...")
     apps = gettodayapphistory()
-
-    # 1분 미만 ---> 필터링
+    # 1분 미만 필터링
     apps = [a for a in apps if a["minutes"] >= 1.0]
 
     if apps:
-        aw_text = ""
-
-        # 로컬 앱 / web 분리
-        app_items = [a for a in apps if a["source"] != "web"]
-        web_items = [a for a in apps if a["source"] == "web"]
-
-        if app_items:
-            aw_text += "로컬 앱:"
-            for item in app_items[:20]:  # 상위 20개만 출력
-                aw_text += f"  {item['app']} | {int(item['minutes'])}분 | {item['title'][:50]}\n"
-
-        if web_items:
-            aw_text += "브라우저 탭: "
-            for item in web_items[:35]:  # 상위 20개만 출력
-                aw_text += f"  {int(item['minutes'])}분 | {item['title'][:50]}\n"
-                if item.get("url"):
-                    aw_text += f" : {item['url']}\n"
-
-        # 오늘 총 사용 시간 계산 (sum 사용)
+        aw_text = "====== 실행된 로컬 앱 및 활동 내역 ======\n"
+        for item in apps[:20]:  # 상위 20개만 출력
+            aw_text += f"  {item['app']} | {int(item['minutes'])}분 | {item['title'][:50]}\n"
+        
         total_mins = sum(a["minutes"] for a in apps)
         aw_text += f"\n total 컴퓨터 사용: {int(total_mins)}분 ({int(total_mins / 60)}시간)"
     else:
@@ -119,21 +102,7 @@ if __name__ == "__main__":
 
     # Gmail API -----> 나에게 메일 전송
     print("이메일 발송 중...")
-    SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
-    creds = None
-    service = None
-
-    # 기존 토큰 불러오기
-    if os.path.exists("auth/token.json"):
-        creds = Credentials.from_authorized_user_file("auth/token.json", SCOPES)
-
-    # 토큰이 없으면 새로 로그인
-    if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file("auth/client_secret.json", SCOPES)
-        creds = flow.run_local_server(port=0)
-        with open("auth/token.json", "w") as f:
-            f.write(creds.to_json())
-
+    creds = google_login()
     service = build("gmail", "v1", credentials=creds)
 
     my_email = os.getenv("MY_EMAIL", "sijoon0404@gmail.com")
