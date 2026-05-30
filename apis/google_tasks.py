@@ -1,35 +1,3 @@
-"""
-1._login(): google tasks / Gmail API를 위한 인증 Outh를 진행
-특징:
-    - 프로젝트 루트 기준으로:Auth 폴더를 자동으로 생성 그 안에 인증 파일을 보관하자: .env/ client.json/ token.json등
-    - token.json: 기존에 로그인 새션이 있으면 재사용, 만료되면 갱신함
-    - 처음 로그인 하거나 토큰이 깨진 경우에만 cilent_secret.json을 읽음
-
-2. get_task_lists(): 사용자의 구글 task에 생성되어 있는 할일 목록의 이름과 고유한 ID를 반환
-형태:
-[
-    {"id": "ABCDEFGHI...", "title": "운영체제"},
-    {"id": "...", "title": "클라우드 AI 프로그래밍"},
-    {"id": "...", "title": "기본 목록"}
-]
-
-3. get_task_in_list(list_id): 특정한 할일을 지정하면 그 목록안에 포함 안되는 일은 제외하고 보여줌
-[
-    {"id": ... , "title": "CHP 7 memory management"},
-    {"id": , "title": "클라우드 AI 프로그래밍 기말과제 초안"}
-]
-
-4. get_all_task_titles(): 최대 20개의 할일을 전부 돌아서 제목만 뽑아서 전달 (프롬프트용 전달)
-형태:
-CHP 7 memory management 복습,
-클라우드 활용 수업듣기,
-클라우드 활용 블로그 과제 초안,
-클라우드 AI 프로그래밍 기말과제 초안 # 콤마로 구분할 수 있게 join
-
-5. save_log(task_name, focus_score, is_distracted)
-역할: 현재 수행 중인 작업명과 집중도 측정 결과를 로컬 JSON 파일에 저장
-"""
-
 import os
 import json
 from datetime import datetime
@@ -40,26 +8,31 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
-load_dotenv("../auth/.env", override=True)
+# 루트 / 하위 디렉토리 어디서든지 읽을 수 있게 수정
+if os.path.exists("auth/.env"):
+    load_dotenv("auth/.env", override=True)
 
-SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/auth/gmail.send"]
+else:
+    load_dotenv("../auth/.env", override=True)
+
+SCOPES = ["https://www.googleapis.com/auth/tasks"]
 
 
 def google_login():
-    creds = None
+    creds = None # # 최종 반환 자격 증명을 담아둘 변수
 
-    # auth 폴더 경로 지정
-    tokenpath = "auth/token.json"
-    secretpath = "auth/client_secret.json"
-    if not os.path.exists(tokenpath):
+
+    if os.path.exists("auth/client_secret.json"):
+        tokenpath = "auth/token.json"
+        secretpath = "auth/client_secret.json"
+    else:
         tokenpath = "../auth/token.json"
         secretpath = "../auth/client_secret.json"
-
-
+    # 기존에 로그인 -> 토큰이 있다면
     if os.path.exists(tokenpath):
         creds = Credentials.from_authorized_user_file(tokenpath, SCOPES)
 
-    # 토큰이 없거 경우
+    # 토큰이 없는 경우
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
@@ -70,12 +43,12 @@ def google_login():
                 raise FileNotFoundError(
                     f"인증 파일이 없습니다. 지정된 위치를 확인하세요:\n{secretpath}"
                 )
-
-            print("구글 로그인 창이 열립니다...")
+            
+            print("구글 로그인 창")
             flow = InstalledAppFlow.from_client_secrets_file(secretpath, SCOPES)
             creds = flow.run_local_server(port=0)
 
-        # 로그인 후 새로 발급받은 토큰 저장
+        # 새로 발급받은 토큰 저장
         with open(tokenpath, "w", encoding="utf-8") as f:
             f.write(creds.to_json())
 
@@ -84,13 +57,14 @@ def google_login():
 
 
 def getsubjectlist():
-    # 과목(리스트) 목록 반환
-    # [{"id": ..., "title": ...}, ...]
+    # 과목(리스트) 목록 반환 - goal(할일) 반환
     service = build("tasks", "v1", credentials=google_login())
     result = service.tasklists().list().execute()
-    
+
+    #  결과에서 id와 title만 추출하여 반환
     items = result.get("items", [])
     resultlist = []
+
     for item in items:
         resultlist.append({
             "id": item["id"],
@@ -102,6 +76,7 @@ def getsubjectlist():
 def getalltodotitles():
     # 모든 할일을 csv 형태(,)로 구분해서 반환
     service = build("tasks", "v1", credentials=google_login())
+    # 최대 20개의 할일 조회
     lists = service.tasklists().list(maxResults=20).execute()
     titles = []
 
@@ -114,27 +89,31 @@ def getalltodotitles():
                 # title 만 가져옴
                 titles.append(task["title"])
         except Exception as e:
-            print(f"목록 {lst['title']} 로딩 중 에러: {e}")
+            # 없거나 못 찾는 경우의 예외 처리------> 필요
+            print(f"목록 {lst['title']} | 에러: {e}")
             continue
-
+    #
     return ",".join(titles) if titles else "할일 없음"
 
 
-#===============
-# error: get_tasks_in_list 함수를 따로 만듬 -> list로 쓸 떄
+
+# 세부 할일도 list로 반환하는 함수
 def gettodolist(list_id):
+    # list_id의 할일 찾기
     service = build("tasks", "v1", credentials=google_login())
     tasks_result = service.tasks().list(tasklist=list_id, showCompleted=False).execute()
-    
+
+    # id / title만 추출해서 반환
     items = tasks_result.get("items", [])
     resultlist = []
+    # {"id": "abc123", "title": "운영체제 과제"} 형태로 dict로 만들어서 반환
     for item in items:
         resultlist.append({
             "id": item["id"],
             "title": item["title"]
         })
     return resultlist
-# ==============
+
 
 def savetojson(task_name, focus_score, is_distracted):
     # 집중도 측정 결과 => data.json 에 저장
@@ -142,16 +121,18 @@ def savetojson(task_name, focus_score, is_distracted):
     logpath = f"data/log_{today}.json"  # 날마다 다른 파일
     logs = []
 
+    # 기존에 파일이 있으면 불러오기
     if os.path.exists(logpath):
         with open(logpath, "r", encoding="utf-8") as f:
             logs = json.load(f)
-
+    # 새로운 기록 추가
     logs.append({
+        #기록시간 / 작업명 / 집중도 점수 / 딴짓 여부
         "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "task_name": task_name,
         "score": focus_score,
         "distracted": is_distracted,
     })
-
+    # JSON으로 저장 + indent 띄어 쓰기 적용
     with open(logpath, "w", encoding="utf-8") as f:
         json.dump(logs, f, ensure_ascii=False, indent=2)

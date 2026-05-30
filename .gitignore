@@ -20,3 +20,10 @@ data/
 auth/.env
 auth/token.json
 auth/client_secret.json
+
+# Model weights
+*.pt
+yolo11n-pose.pt
+
+# Scratch directory
+scratch/
