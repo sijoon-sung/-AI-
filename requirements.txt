@@ -1,19 +1,12 @@
-# ── AI / LLM ──────────────────────────────────────────────────
-langchain-google-genai  # ChatGoogleGenerativeAI (Gemini)
-langchain-core         
+langchain-google-genai
+langchain-core
 langgraph
-
-# ── 화면 캡처 ──────────────────────────────────────────────────
-pyautogui               # 스크린샷 (checker.py: capture_and_analyze)
-
-# ── 알림 ───────────────────────────────────────────────────────
-plyer                   # Windows 데스크탑 알림 (checker.py: send_alert)
-rich                    # 터미널 UI 데코레이션 및 진행바 (main.py)
-
-# ── 환경변수 ───────────────────────────────────────────────────
-python-dotenv           # auth/.env 에서 GOOGLE_API_KEY 로드
-
-# ── Google API ─────────────────────────────────────────────────
-google-auth             # OAuth2 Credentials
-google-auth-oauthlib    # InstalledAppFlow (브라우저 로그인)
-google-api-python-client  # Google Tasks / Gmail API
+pyautogui
+plyer
+rich
+python-dotenv
+google-auth
+google-auth-oauthlib
+google-api-python-client
+opencv-python
+ultralytics
