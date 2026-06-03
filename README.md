@@ -5,10 +5,9 @@
 ## 사전 요구 사항
 
 1. ActivityWatch: https://activitywatch.net/ 에서 다운로드하여 백그라운드에 실행해 둡니다. 로컬 주소는 http://localhost:5600 입니다.
-2. API 키 설정: auth/.env 파일을 만들고 아래 내용을 입력합니다.
+2. API 키 설정: auth/.env 파일을 만들고 아래 내용을 입력합니다. GOOGLE_API_KEY 항목에 발급받은 Gemini API 키를 입력하면 됩니다.
    ```env
-   GOOGLE_API_KEY="본인의 구글 API 키"
-   GEMINI_API_KEY="본인의 제미나이 API 키"
+   GOOGLE_API_KEY="제미나이 API 키"
    ```
 3. Google Tasks API 자격증명: Google Cloud Console에서 Google Tasks API를 활성화하고 발급받은 client_secret.json 파일을 auth/ 폴더에 넣어야 합니다.
 
